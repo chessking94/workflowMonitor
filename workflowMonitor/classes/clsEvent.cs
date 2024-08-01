@@ -1,0 +1,10 @@
+﻿namespace workflowMonitor
+{
+    public class clsEvent
+    {
+        public int eventID { get; set; }
+        public int actionID { get; set; }
+        public string? applicationFilename { get; set; }
+        public string? eventParameters { get; set; }
+    }
+}
