@@ -1,12 +1,12 @@
-﻿namespace workflowMonitor
-{
-    using System;
-    using Microsoft.Data.SqlClient;
-    using System.Threading.Tasks;
+﻿using Microsoft.Data.SqlClient;
+// using System.Threading.Tasks;
 
+namespace workflowMonitor
+{
     class Program
     {
         public static Utilities_NetCore.clsConfig myConfig = new Utilities_NetCore.clsConfig();
+        public static SqlConnection connection = new SqlConnection();
 
         static async Task Main(string[] args)
         {
@@ -20,7 +20,7 @@
 #else
             string connectionString = myConfig.getConfig("connectionStringProd");
 #endif
-            var connection = new SqlConnection(connectionString);
+            connection.ConnectionString = connectionString;
 
             TimeSpan startTime = new TimeSpan(8, 0, 0);
             TimeSpan endTime = new TimeSpan(20, 0, 0);
@@ -70,6 +70,8 @@
                     var result = command.ExecuteScalar();
                     if (result != DBNull.Value && Convert.ToInt16(result) == 1)
                     {
+                        // TODO: how do I want to determine what action to run? log something in the DB? Hard-code the action ID's?
+                        
                         // TODO: event can be started, start it asyncronously
                     }
                 }
@@ -91,7 +93,54 @@
                 connection.Close();
             }
 
+            //string query = "SELECT COUNT(*) FROM YourTableName WHERE Status = 'New'"; // Replace with your actual query
+            //string applicationPath = "YourApplicationPathHere"; // Replace with the path to the application you want to start
+
+            //while (true)
+            //{
+            //    if (await CheckForNewRecordsAsync(connectionString, query))
+            //    {
+            //        StartApplication(applicationPath);
+            //    }
+            //    else
+            //    {
+            //        Console.WriteLine($"{DateTime.Now}: No new records found.");
+            //    }
+
+            //    await Task.Delay(60000); // Wait for 1 minute before checking again
+            //}
         }
+
+        //static async Task<bool> CheckForNewRecordsAsync(string connectionString, string query)
+        //{
+        //    using (SqlConnection connection = new SqlConnection(connectionString))
+        //    {
+        //        await connection.OpenAsync();
+
+        //        using (SqlCommand command = new SqlCommand(query, connection))
+        //        {
+        //            int recordCount = (int)await command.ExecuteScalarAsync();
+        //            return recordCount > 0;
+        //        }
+        //    }
+        //}
+
+        //static void StartApplication(string applicationPath)
+        //{
+        //    try
+        //    {
+        //        Process.Start(new ProcessStartInfo
+        //        {
+        //            FileName = applicationPath,
+        //            UseShellExecute = true
+        //        });
+        //        Console.WriteLine($"{DateTime.Now}: Application started successfully.");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine($"{DateTime.Now}: Failed to start application: {ex.Message}");
+        //    }
+        //}
 
         static Boolean canExecuteEvents(TimeSpan startTime, TimeSpan endTime)
         {
