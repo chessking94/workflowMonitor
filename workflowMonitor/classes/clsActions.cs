@@ -35,6 +35,7 @@ namespace workflowMonitor
                 };
 
                 process.Start();
+                UpdateEventStatus(myEvent.eventID, "Processing");
 
                 // read the output if needed
                 string output = await process.StandardOutput.ReadToEndAsync();
@@ -44,32 +45,32 @@ namespace workflowMonitor
 
                 if (exitCode == 0)
                 {
-                    // TODO: update the database
-                    Console.WriteLine($"Application {myEvent.applicationFilename} completed successfully");
+                    UpdateEventStatus(myEvent.eventID, "Complete");
                 }
                 else
                 {
-                    // TODO: update the database
-                    Console.WriteLine($"Application {myEvent.applicationFilename} returned an error: {error}");
+                    UpdateEventStatus(myEvent.eventID, "Error", error);
                 }
             }
             catch (Exception ex)
             {
-                // TODO: update the database
-                Console.WriteLine($"Error starting application {myEvent.applicationFilename}: {ex.Message}");
+                UpdateEventStatus(myEvent.eventID, "Error", ex.Message);
             }
         }
 
-        internal void UpdateEventStatus(int eventID, string eventStatus)
+        private static void UpdateEventStatus(int eventID, string eventStatus, string? eventError = null)
         {
-            // TODO: may need to update this proc to update the eventError field as well
             var command = new SqlCommand();
             command.Connection = Program.connection;
             command.CommandType = System.Data.CommandType.StoredProcedure;
             command.CommandText = "dbo.updateEventStatus";
             command.Parameters.AddWithValue("@eventID", eventID);
             command.Parameters.AddWithValue("@eventStatus", eventStatus);
-            command.ExecuteNonQuery();
+            if (eventError != null)
+            {
+                command.Parameters.AddWithValue("@eventError", eventError);
+            }
+            command.ExecuteNonQuery();  // TODO: do I need to change this to ExecuteNonQueryAsync?
         }
     }
 }

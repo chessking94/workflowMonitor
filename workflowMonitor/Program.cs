@@ -64,7 +64,7 @@ namespace workflowMonitor
                 command.CommandText = "dbo.canStartEvent";
                 foreach (clsEvent evt in pendingEvents)
                 {
-                    // query if an event can be started (proc dbo.canStartEvent)
+                    // determine if an event can be started
                     command.Parameters.Clear();
                     command.Parameters.AddWithValue("@eventID", evt.eventID);
                     var result = command.ExecuteScalar();
