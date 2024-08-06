@@ -5,7 +5,7 @@ namespace workflowMonitor
 {
     internal class clsActions
     {
-        static async Task StartApplication(clsEvent myEvent)
+        public static async Task StartApplication(clsEvent myEvent)
         {
             try
             {
@@ -23,15 +23,23 @@ namespace workflowMonitor
                     EnableRaisingEvents = true
                 };
 
-                if (myEvent.eventParameters != null)
+                if (!string.IsNullOrWhiteSpace(myEvent.applicationDefaultParameter))
                 {
-                    process.StartInfo.Arguments = myEvent.eventParameters;
+                    process.StartInfo.Arguments = myEvent.applicationDefaultParameter;
+                }
+
+                if (!string.IsNullOrWhiteSpace(myEvent.eventParameters))
+                {
+                    if (!string.IsNullOrWhiteSpace(process.StartInfo.Arguments))
+                    {
+                        process.StartInfo.Arguments += " ";
+                    }
+                    process.StartInfo.Arguments += myEvent.eventParameters;
                 }
 
                 process.Exited += (sender, args) =>
                 {
                     tcs.SetResult(process.ExitCode);
-                    process.Dispose();
                 };
 
                 process.Start();
@@ -42,6 +50,7 @@ namespace workflowMonitor
                 string error = await process.StandardError.ReadToEndAsync();
 
                 int exitCode = await tcs.Task;
+                process.Dispose();
 
                 if (exitCode == 0)
                 {
@@ -58,7 +67,7 @@ namespace workflowMonitor
             }
         }
 
-        private static void UpdateEventStatus(int eventID, string eventStatus, string? eventError = null)
+        private static void UpdateEventStatus(int eventID, string eventStatus, string? eventNote = null)
         {
             var command = new SqlCommand();
             command.Connection = Program.connection;
@@ -66,11 +75,11 @@ namespace workflowMonitor
             command.CommandText = "dbo.updateEventStatus";
             command.Parameters.AddWithValue("@eventID", eventID);
             command.Parameters.AddWithValue("@eventStatus", eventStatus);
-            if (eventError != null)
+            if (eventNote != null)
             {
-                command.Parameters.AddWithValue("@eventError", eventError);
+                command.Parameters.AddWithValue("@eventNote", eventNote);
             }
-            command.ExecuteNonQuery();  // TODO: do I need to change this to ExecuteNonQueryAsync?
+            command.ExecuteNonQuery();
         }
     }
 }

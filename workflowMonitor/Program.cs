@@ -1,4 +1,5 @@
 ﻿using Microsoft.Data.SqlClient;
+using Microsoft.Identity.Client;
 // using System.Threading.Tasks;
 
 namespace workflowMonitor
@@ -10,6 +11,13 @@ namespace workflowMonitor
 
         static async Task Main(string[] args)
         {
+#if DEBUG
+            Console.WriteLine("You are running this in DEBUG mode and the process will never terminate!");
+            Console.WriteLine("If you are not stepping through an active debug session, please be advised to do so.");
+            Console.WriteLine("If you wish to continue, please type any key.");
+            Console.ReadKey();
+#endif
+
             // set reference variables
             string projectDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..\\..\\.."));
             string configFile = Path.Combine(projectDir, "appsettings.json");
@@ -21,6 +29,8 @@ namespace workflowMonitor
             string connectionString = myConfig.getConfig("connectionStringProd");
 #endif
             connection.ConnectionString = connectionString;
+
+            List<Task> tasks = new List<Task>();
 
             TimeSpan startTime = new TimeSpan(8, 0, 0);
             TimeSpan endTime = new TimeSpan(20, 0, 0);
@@ -51,6 +61,7 @@ namespace workflowMonitor
                         eventRecord.eventID = reader["eventID"] != DBNull.Value ? Convert.ToInt32(reader["eventID"]) : default;
                         eventRecord.actionID = reader["actionID"] != DBNull.Value ? Convert.ToInt32(reader["actionID"]) : default;
                         eventRecord.applicationFilename = reader["applicationFilename"] != DBNull.Value ? reader["applicationFilename"] as string : null;
+                        eventRecord.applicationDefaultParameter = reader["applicationDefaultParameter"] != DBNull.Value ? reader["applicationDefaultParameter"] as string : null;
                         eventRecord.eventParameters = reader["eventParameters"] != DBNull.Value ? reader["eventParameters"] as string : null;
 
                         pendingEvents.Add(eventRecord);
@@ -70,80 +81,36 @@ namespace workflowMonitor
                     var result = command.ExecuteScalar();
                     if (result != DBNull.Value && Convert.ToInt16(result) == 1)
                     {
-                        // TODO: how do I want to determine what action to run? log something in the DB? Hard-code the action ID's?
-                        
-                        // TODO: event can be started, start it asyncronously
+                        tasks.Add(clsActions.StartApplication(evt));
                     }
                 }
                 command.Dispose();
 
-                // TODO: when event ends/errors, need to update DB
-
+#if DEBUG
+                // only want to run one iteration of this loop in testing
+                break;
+#else
                 // sleep for the defined period then re-populate executeEvents to exit loop when necessary
                 int sleepSeconds = 60;
                 Thread.Sleep(1000 * sleepSeconds);
                 executeEvents = canExecuteEvents(startTime, endTime);
-
-                // TODO: confirm if I'm processing async I'm able to exit this loop while events are still running
+#endif
             }
+
+            await Task.WhenAll(tasks);
 
             // clean-up
             if (connection.State == System.Data.ConnectionState.Open)
             {
                 connection.Close();
             }
-
-            //string query = "SELECT COUNT(*) FROM YourTableName WHERE Status = 'New'"; // Replace with your actual query
-            //string applicationPath = "YourApplicationPathHere"; // Replace with the path to the application you want to start
-
-            //while (true)
-            //{
-            //    if (await CheckForNewRecordsAsync(connectionString, query))
-            //    {
-            //        StartApplication(applicationPath);
-            //    }
-            //    else
-            //    {
-            //        Console.WriteLine($"{DateTime.Now}: No new records found.");
-            //    }
-
-            //    await Task.Delay(60000); // Wait for 1 minute before checking again
-            //}
         }
-
-        //static async Task<bool> CheckForNewRecordsAsync(string connectionString, string query)
-        //{
-        //    using (SqlConnection connection = new SqlConnection(connectionString))
-        //    {
-        //        await connection.OpenAsync();
-
-        //        using (SqlCommand command = new SqlCommand(query, connection))
-        //        {
-        //            int recordCount = (int)await command.ExecuteScalarAsync();
-        //            return recordCount > 0;
-        //        }
-        //    }
-        //}
-
-        //static void StartApplication(string applicationPath)
-        //{
-        //    try
-        //    {
-        //        Process.Start(new ProcessStartInfo
-        //        {
-        //            FileName = applicationPath,
-        //            UseShellExecute = true
-        //        });
-        //        Console.WriteLine($"{DateTime.Now}: Application started successfully.");
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Console.WriteLine($"{DateTime.Now}: Failed to start application: {ex.Message}");
-        //    }
-        //}
 
         static Boolean canExecuteEvents(TimeSpan startTime, TimeSpan endTime)
         {
+#if DEBUG
+            return true;
+#else
             TimeSpan currentTime = DateTime.Now.TimeOfDay;
             if (currentTime >= startTime && currentTime <= endTime)
             {
@@ -153,7 +120,7 @@ namespace workflowMonitor
             {
                 return false;
             }
+#endif
         }
     }
-
 }
