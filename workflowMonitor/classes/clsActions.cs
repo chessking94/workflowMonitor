@@ -69,6 +69,9 @@ namespace workflowMonitor
 
         private static void UpdateEventStatus(int eventID, string eventStatus, string? eventNote = null)
         {
+#if DEBUG
+            Debug.Print(eventStatus);
+#else
             var command = new SqlCommand();
             command.Connection = Program.connection;
             command.CommandType = System.Data.CommandType.StoredProcedure;
@@ -80,6 +83,7 @@ namespace workflowMonitor
                 command.Parameters.AddWithValue("@eventNote", eventNote);
             }
             command.ExecuteNonQuery();
+#endif
         }
     }
 }
