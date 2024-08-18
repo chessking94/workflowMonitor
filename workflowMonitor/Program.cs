@@ -1,6 +1,4 @@
 ﻿using Microsoft.Data.SqlClient;
-using Microsoft.Identity.Client;
-// using System.Threading.Tasks;
 
 namespace workflowMonitor
 {
