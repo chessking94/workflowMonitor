@@ -47,14 +47,17 @@ namespace workflowMonitor
 
                 // read the output if needed
                 string output = await process.StandardOutput.ReadToEndAsync();
+                output = output.Trim();
+
                 string error = await process.StandardError.ReadToEndAsync();
+                error = error.Trim();
 
                 int exitCode = await tcs.Task;
                 process.Dispose();
 
                 if (exitCode == 0)
                 {
-                    UpdateEventStatus(myEvent.eventID, "Complete");
+                    UpdateEventStatus(myEvent.eventID, "Complete", myEvent.actionLogOutput ? output : null);
                 }
                 else
                 {
@@ -69,7 +72,7 @@ namespace workflowMonitor
 
         private static void UpdateEventStatus(int eventID, string eventStatus, string? eventNote = null)
         {
-#if DEBUG
+#if !DEBUG
             Debug.Print(eventStatus);
 #else
             var command = new SqlCommand();

@@ -56,11 +56,12 @@ namespace workflowMonitor
                     {
                         var eventRecord = new clsEvent();
 
-                        eventRecord.eventID = reader["eventID"] != DBNull.Value ? Convert.ToInt32(reader["eventID"]) : default;
-                        eventRecord.actionID = reader["actionID"] != DBNull.Value ? Convert.ToInt32(reader["actionID"]) : default;
-                        eventRecord.applicationFilename = reader["applicationFilename"] != DBNull.Value ? reader["applicationFilename"] as string : null;
+                        eventRecord.eventID = Convert.ToInt32(reader["eventID"]);
+                        eventRecord.actionID = Convert.ToInt32(reader["actionID"]);
+                        eventRecord.applicationFilename = reader["applicationFilename"] as string;
                         eventRecord.applicationDefaultParameter = reader["applicationDefaultParameter"] != DBNull.Value ? reader["applicationDefaultParameter"] as string : null;
                         eventRecord.eventParameters = reader["eventParameters"] != DBNull.Value ? reader["eventParameters"] as string : null;
+                        eventRecord.actionLogOutput = Convert.ToBoolean(reader["actionLogOutput"]);
 
                         pendingEvents.Add(eventRecord);
                     }
