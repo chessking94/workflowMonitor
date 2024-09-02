@@ -30,8 +30,8 @@ namespace workflowMonitor
 
             List<Task> tasks = new List<Task>();
 
-            TimeSpan startTime = new TimeSpan(8, 0, 0);
-            TimeSpan endTime = new TimeSpan(20, 0, 0);
+            TimeSpan startTime = new TimeSpan(0, 5, 0);
+            TimeSpan endTime = new TimeSpan(23, 55, 0);
 
             Boolean executeEvents = canExecuteEvents(startTime, endTime);
             while (executeEvents)
