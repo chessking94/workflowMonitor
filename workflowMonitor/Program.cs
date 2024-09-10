@@ -10,22 +10,23 @@ namespace workflowMonitor
         static async Task Main(string[] args)
         {
 #if DEBUG
-            Console.WriteLine("You are running this in DEBUG mode and the process will never terminate!");
-            Console.WriteLine("If you are not stepping through an active debug session, please be advised to do so.");
+            Console.WriteLine("NOTICE: You are running this in DEBUG mode and the process will only execute one iteration.");
             Console.WriteLine("If you wish to continue, please type any key.");
             Console.ReadKey();
 #endif
 
             // set reference variables
+#if DEBUG
+            // three directories up from exe
             string projectDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..\\..\\.."));
+#else
+            // one directory up from exe
+            string projectDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".."));
+#endif
             string configFile = Path.Combine(projectDir, "appsettings.json");
             myConfig.configFile = configFile;
 
-#if DEBUG
-            string connectionString = myConfig.getConfig("connectionStringDev");
-#else
-            string connectionString = myConfig.getConfig("connectionStringProd");
-#endif
+            string connectionString = myConfig.getConfig("connectionString");
             connection.ConnectionString = connectionString;
 
             List<Task> tasks = new List<Task>();

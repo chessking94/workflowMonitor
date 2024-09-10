@@ -1,4 +1,9 @@
+# directories
 .vs/
 bin/
 obj/
+My Project/
+
+# files
+*.user
 appsettings.json
