@@ -31,8 +31,8 @@ namespace workflowMonitor
 
             List<Task> tasks = new List<Task>();
 
-            TimeSpan startTime = new TimeSpan(0, 5, 0);
-            TimeSpan endTime = new TimeSpan(23, 55, 0);
+            TimeSpan startTime = new TimeSpan(1, 55, 0);
+            TimeSpan endTime = new TimeSpan(22, 30, 0);
 
             Boolean executeEvents = canExecuteEvents(startTime, endTime);
             while (executeEvents)
@@ -112,7 +112,8 @@ namespace workflowMonitor
             return true;
 #else
             TimeSpan currentTime = DateTime.Now.TimeOfDay;
-            if (currentTime >= startTime && currentTime <= endTime)
+            bool executeEventsOverride = Convert.ToBoolean(myConfig.getConfig("executeEventsOverride"));
+            if (executeEventsOverride && (currentTime >= startTime && currentTime <= endTime))  // kill process if override is set to false
             {
                 return true;
             }
