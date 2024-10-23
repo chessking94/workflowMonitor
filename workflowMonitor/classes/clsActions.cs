@@ -72,7 +72,7 @@ namespace workflowMonitor
 
         private static void UpdateEventStatus(int eventID, string eventStatus, string? eventNote = null)
         {
-#if !DEBUG
+#if DEBUG
             Debug.Print(eventStatus);
 #else
             var command = new SqlCommand();
