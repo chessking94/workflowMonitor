@@ -14,9 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="Utilities_NetCore">
-      <HintPath>..\..\Utilities_NetCore\Utilities_NetCore\bin\Release\net8.0\Utilities_NetCore.dll</HintPath>
-    </Reference>
+    <ProjectReference Include="..\..\Utilities_NetCore\Utilities_NetCore\Utilities_NetCore.vbproj" />
   </ItemGroup>
 
 </Project>
