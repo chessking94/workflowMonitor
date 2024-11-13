@@ -78,7 +78,7 @@ namespace workflowMonitor
             var command = new SqlCommand();
             command.Connection = Program.connection;
             command.CommandType = System.Data.CommandType.StoredProcedure;
-            command.CommandText = "dbo.updateEventStatus";
+            command.CommandText = "Workflow.dbo.updateEventStatus";
             command.Parameters.AddWithValue("@eventID", eventID);
             command.Parameters.AddWithValue("@eventStatus", eventStatus);
             if (eventNote != null)
