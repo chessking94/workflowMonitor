@@ -6,7 +6,6 @@ namespace workflowMonitor
 {
     class Program
     {
-        public static clsConfig myConfig = new clsConfig();
         public static SqlConnection connection = new SqlConnection();
 
         static async Task Main(string[] args)
@@ -29,27 +28,31 @@ namespace workflowMonitor
                 Console.WriteLine("NOTICE: You are running this in DEBUG mode and the process will only execute one iteration.");
                 Console.WriteLine("If you wish to continue, please type any key.");
                 Console.ReadKey();
+
+                var logMethod = modLogging.eLogMethod.CONSOLE;
 #else
-                modLogging.AddLog(programName, "C#", "Program.Main", modLogging.eLogLevel.INFO, "Process started", modLogging.eLogMethod.DATABASE);
+                var logMethod = modLogging.eLogMethod.DATABASE;
+                modLogging.AddLog(programName, "C#", "Program.Main", modLogging.eLogLevel.INFO, "Process started", logMethod);
 #endif
 
-                // set reference variables
                 try
                 {
 #if DEBUG
                     // three directories up from exe
                     string projectDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..\\..\\.."));
+                    string? connectionString = Environment.GetEnvironmentVariable("ConnectionStringDebug");
 #else
                     // one directory up from exe
                     string projectDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".."));
+                    string? connectionString = Environment.GetEnvironmentVariable("ConnectionStringRelease");
 #endif
-                    string configFile = Path.Combine(projectDir, "appsettings.json");
-                    myConfig.configFile = configFile;
+                    if (connectionString == null)
+                    {
+                        modLogging.AddLog(programName, "C#", "Program.Main", modLogging.eLogLevel.CRITICAL, "Unable to read connection string", logMethod);
+                        Environment.Exit(-1);
+                    }
 
-                    string connectionString = myConfig.getConfig("connectionString");
-                    connection.ConnectionString = connectionString;
-
-                    List<Task> tasks = new List<Task>();
+                    var tasks = new List<Task>();
 
                     TimeSpan startTime = new TimeSpan(1, 55, 0);
                     TimeSpan endTime = new TimeSpan(22, 30, 0);
@@ -111,7 +114,7 @@ namespace workflowMonitor
                         break;
 #else
                         // sleep for the defined period then re-populate executeEvents to exit loop when necessary
-                        int sleepSeconds = 60;
+                        int sleepSeconds = 10;
                         Thread.Sleep(1000 * sleepSeconds);
                         executeEvents = canExecuteEvents(startTime, endTime);
 #endif
@@ -121,11 +124,6 @@ namespace workflowMonitor
                 }
                 catch (Exception ex)
                 {
-#if DEBUG
-                    var logMethod = modLogging.eLogMethod.CONSOLE;
-#else
-                    var logMethod = modLogging.eLogMethod.DATABASE;
-#endif
                     modLogging.AddLog(programName, "C#", "Program.Main", modLogging.eLogLevel.CRITICAL, $"{ex.Message} --- {ex.StackTrace}", logMethod);
                 }
                 finally
@@ -137,7 +135,7 @@ namespace workflowMonitor
                     }
                 }
 #if !DEBUG
-                modLogging.AddLog(programName, "C#", "Program.Main", modLogging.eLogLevel.INFO, "Process ended", modLogging.eLogMethod.DATABASE);
+                modLogging.AddLog(programName, "C#", "Program.Main", modLogging.eLogLevel.INFO, "Process ended", logMethod);
 #endif
             }
         }
@@ -148,8 +146,7 @@ namespace workflowMonitor
             return true;
 #else
             TimeSpan currentTime = DateTime.Now.TimeOfDay;
-            bool executeEventsOverride = Convert.ToBoolean(myConfig.getConfig("executeEventsOverride"));
-            if (executeEventsOverride && (currentTime >= startTime && currentTime <= endTime))  // kill process if override is set to false
+            if (currentTime >= startTime && currentTime <= endTime)
             {
                 return true;
             }
