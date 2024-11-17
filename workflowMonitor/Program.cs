@@ -52,6 +52,8 @@ namespace workflowMonitor
                         Environment.Exit(-1);
                     }
 
+                    connection.ConnectionString = connectionString;
+
                     var tasks = new List<Task>();
 
                     TimeSpan startTime = new TimeSpan(1, 55, 0);
