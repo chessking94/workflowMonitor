@@ -7,11 +7,10 @@ namespace workflowMonitor
     class Program
     {
         public static SqlConnection connection = new SqlConnection();
+        public static string programName = "workflowMonitor";
 
         static async Task Main(string[] args)
         {
-            string programName = "workflowMonitor";
-
             if (args.Length != 0)
             {
                 // argument was passed, only check if program is already running
@@ -88,6 +87,7 @@ namespace workflowMonitor
                                 eventRecord.applicationDefaultParameter = reader["applicationDefaultParameter"] != DBNull.Value ? reader["applicationDefaultParameter"] as string : null;
                                 eventRecord.eventParameters = reader["eventParameters"] != DBNull.Value ? reader["eventParameters"] as string : null;
                                 eventRecord.actionLogOutput = Convert.ToBoolean(reader["actionLogOutput"]);
+                                eventRecord.applicationType = reader["applicationType"] != DBNull.Value ? reader["applicationType"] as string : null;
 
                                 pendingEvents.Add(eventRecord);
                             }
