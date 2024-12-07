@@ -31,7 +31,7 @@ namespace workflowMonitor
                 var logMethod = modLogging.eLogMethod.CONSOLE;
 #else
                 var logMethod = modLogging.eLogMethod.DATABASE;
-                modLogging.AddLog(programName, "C#", "Program.Main", modLogging.eLogLevel.INFO, "Process started", logMethod);
+                // modLogging.AddLog(programName, "C#", "Program.Main", modLogging.eLogLevel.INFO, "Process started", logMethod);
 #endif
 
                 try
@@ -137,7 +137,7 @@ namespace workflowMonitor
                     }
                 }
 #if !DEBUG
-                modLogging.AddLog(programName, "C#", "Program.Main", modLogging.eLogLevel.INFO, "Process ended", logMethod);
+                // modLogging.AddLog(programName, "C#", "Program.Main", modLogging.eLogLevel.INFO, "Process ended", logMethod);
 #endif
             }
         }
