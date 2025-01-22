@@ -1,65 +1,62 @@
-﻿using Microsoft.Data.SqlClient;
-using System.Diagnostics;
+﻿using System.ServiceProcess;
+using Microsoft.Data.SqlClient;
 using Utilities_NetCore;
 
-namespace workflowMonitor
+namespace workflowMonitorService
 {
-    class Program
+    public class WorkflowMonitor : ServiceBase
     {
+        private Task _monitoringTask = Task.CompletedTask;
+        private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         public static SqlConnection connection = new SqlConnection();
-        public static string programName = "workflowMonitor";
+        public static string programName = "WorkflowMonitor";
 
-        static async Task Main(string[] args)
+        public WorkflowMonitor()
         {
-            if (args.Length != 0)
+            ServiceName = programName;
+        }
+
+        protected override void OnStart(string[] args)
+        {
+            _cancellationTokenSource = new CancellationTokenSource();
+            _monitoringTask = Task.Run(() => MonitorEvents(_cancellationTokenSource.Token));
+        }
+
+        protected override void OnStop()
+        {
+            _cancellationTokenSource.Cancel();
+            _monitoringTask?.Wait();
+            if (connection.State != System.Data.ConnectionState.Closed)
             {
-                // argument was passed, only check if program is already running
-                var processes = Process.GetProcessesByName(programName);
-                if (processes.Length <= 1)
-                {
-                    // The only instance of workflowMonitor.exe running is the status check, something is wrong
-                    modNotifications.SendTelegramMessage("WARNING: workflowMonitor.exe is not running!");
-                }
+                connection.Close();
             }
-            else
+        }
+
+        private async Task MonitorEvents(CancellationToken cancellationToken)
+        {
+            var logMethod = modLogging.eLogMethod.DATABASE;
+            try
             {
 #if DEBUG
-                Console.WriteLine("NOTICE: You are running this in DEBUG mode and the process will only execute one iteration.");
-                Console.WriteLine("If you wish to continue, please type any key.");
-                Console.ReadKey();
-
-                var logMethod = modLogging.eLogMethod.CONSOLE;
+                string? connectionString = Environment.GetEnvironmentVariable("ConnectionStringDebug");
 #else
-                var logMethod = modLogging.eLogMethod.DATABASE;
-                // modLogging.AddLog(programName, "C#", "Program.Main", modLogging.eLogLevel.INFO, "Process started", logMethod);
+                string? connectionString = Environment.GetEnvironmentVariable("ConnectionStringRelease");
 #endif
-
-                try
+                if (connectionString == null)
                 {
-#if DEBUG
-                    // three directories up from exe
-                    string projectDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..\\..\\.."));
-                    string? connectionString = Environment.GetEnvironmentVariable("ConnectionStringDebug");
-#else
-                    // one directory up from exe
-                    string projectDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".."));
-                    string? connectionString = Environment.GetEnvironmentVariable("ConnectionStringRelease");
-#endif
-                    if (connectionString == null)
-                    {
-                        modLogging.AddLog(programName, "C#", "Program.Main", modLogging.eLogLevel.CRITICAL, "Unable to read connection string", logMethod);
-                        Environment.Exit(-1);
-                    }
+                    modLogging.AddLog(programName, "C#", "Program.MonitorEvents", modLogging.eLogLevel.CRITICAL, "Unable to read connection string", logMethod);
+                    return;
+                }
 
-                    connection.ConnectionString = connectionString;
+                connection.ConnectionString = connectionString;
 
-                    var tasks = new List<Task>();
+                // only want this to run between 2:30am and 10:30pm, the remaining 4 hours are a nightly maintenance period
+                TimeSpan startTime = new(2, 30, 0);
+                TimeSpan endTime = new(22, 30, 0);
 
-                    TimeSpan startTime = new TimeSpan(1, 55, 0);
-                    TimeSpan endTime = new TimeSpan(22, 30, 0);
-
-                    Boolean executeEvents = canExecuteEvents(startTime, endTime);
-                    while (executeEvents)
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    if (canExecuteEvents(startTime, endTime))
                     {
                         // check if database connection is open, if not, open it
                         if (connection.State != System.Data.ConnectionState.Open)
@@ -67,96 +64,73 @@ namespace workflowMonitor
                             connection.Open();
                         }
 
-                        // query database for events that need to be started (proc dbo.pendingEvents)
+                        // query database for events that need to be started
                         var pendingEvents = new List<clsEvent>();
-
-                        var command = new SqlCommand();
-                        command.Connection = connection;
-                        command.CommandType = System.Data.CommandType.StoredProcedure;
-                        command.CommandText = "Workflow.dbo.pendingEvents";
-
-                        using (var reader = command.ExecuteReader())
+                        var command = new SqlCommand
                         {
-                            while (reader.Read())
-                            {
-                                var eventRecord = new clsEvent();
+                            Connection = connection,
+                            CommandType = System.Data.CommandType.StoredProcedure,
+                            CommandText = "Workflow.dbo.pendingEvents"
+                        };
 
-                                eventRecord.eventID = Convert.ToInt32(reader["eventID"]);
-                                eventRecord.actionID = Convert.ToInt32(reader["actionID"]);
-                                eventRecord.applicationFilename = reader["applicationFilename"] as string;
-                                eventRecord.applicationDefaultParameter = reader["applicationDefaultParameter"] != DBNull.Value ? reader["applicationDefaultParameter"] as string : null;
-                                eventRecord.eventParameters = reader["eventParameters"] != DBNull.Value ? reader["eventParameters"] as string : null;
-                                eventRecord.actionLogOutput = Convert.ToBoolean(reader["actionLogOutput"]);
-                                eventRecord.applicationType = reader["applicationType"] != DBNull.Value ? reader["applicationType"] as string : null;
+                        using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+                        {
+                            while (await reader.ReadAsync(cancellationToken))
+                            {
+                                var eventRecord = new clsEvent
+                                {
+                                    eventID = Convert.ToInt32(reader["eventID"]),
+                                    actionID = Convert.ToInt32(reader["actionID"]),
+                                    applicationFilename = reader["applicationFilename"] as string,
+                                    applicationDefaultParameter = reader["applicationDefaultParameter"] != DBNull.Value ? reader["applicationDefaultParameter"] as string : null,
+                                    eventParameters = reader["eventParameters"] != DBNull.Value ? reader["eventParameters"] as string : null,
+                                    actionLogOutput = Convert.ToBoolean(reader["actionLogOutput"]),
+                                    applicationType = reader["applicationType"] != DBNull.Value ? reader["applicationType"] as string : null
+                                };
 
                                 pendingEvents.Add(eventRecord);
                             }
                         }
-                        command.Dispose();
 
                         // iterate through event records
-                        command.Connection = connection;
-                        command.CommandType = System.Data.CommandType.StoredProcedure;
-                        command.CommandText = "Workflow.dbo.canStartEvent";
                         foreach (clsEvent evt in pendingEvents)
                         {
-                            // determine if an event can be started
                             command.Parameters.Clear();
+                            command.CommandText = "Workflow.dbo.canStartEvent";
                             command.Parameters.AddWithValue("@eventID", evt.eventID);
-                            var result = command.ExecuteScalar();
+
+                            var result = await command.ExecuteScalarAsync(cancellationToken);
                             if (result != DBNull.Value && Convert.ToInt16(result) == 1)
                             {
-                                tasks.Add(clsActions.StartApplication(evt));
+                                await clsActions.StartApplication(evt);
                             }
                         }
-                        command.Dispose();
-
-#if DEBUG
-                        // only want to run one iteration of this loop in testing
-                        break;
-#else
-                        // sleep for the defined period then re-populate executeEvents to exit loop when necessary
-                        int sleepSeconds = 10;
-                        Thread.Sleep(1000 * sleepSeconds);
-                        executeEvents = canExecuteEvents(startTime, endTime);
-#endif
                     }
 
-                    await Task.WhenAll(tasks);
+                    // sleep for the defined period or until cancellation is requested
+                    int sleepSeconds = 10;
+                    await Task.Delay(1000 * sleepSeconds, cancellationToken);
                 }
-                catch (Exception ex)
-                {
-                    modLogging.AddLog(programName, "C#", "Program.Main", modLogging.eLogLevel.CRITICAL, $"{ex.Message} --- {ex.StackTrace}", logMethod);
-                }
-                finally
-                {
-                    // clean-up
-                    if (connection.State == System.Data.ConnectionState.Open)
-                    {
-                        connection.Close();
-                    }
-                }
-#if !DEBUG
-                // modLogging.AddLog(programName, "C#", "Program.Main", modLogging.eLogLevel.INFO, "Process ended", logMethod);
-#endif
+            }
+            catch (Exception ex)
+            {
+                modLogging.AddLog(programName, "C#", "Program.MonitorEvents", modLogging.eLogLevel.CRITICAL, $"{ex.Message} --- {ex.StackTrace}", logMethod);
             }
         }
 
-        static Boolean canExecuteEvents(TimeSpan startTime, TimeSpan endTime)
+        private bool canExecuteEvents(TimeSpan startTime, TimeSpan endTime)
         {
 #if DEBUG
             return true;
 #else
             TimeSpan currentTime = DateTime.Now.TimeOfDay;
-            if (currentTime >= startTime && currentTime <= endTime)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return currentTime >= startTime && currentTime <= endTime;
 #endif
+        }
+
+        public static void Main()
+        {
+            ServiceBase.Run(new WorkflowMonitor());
         }
     }
 }

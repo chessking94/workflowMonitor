@@ -1,0 +1,49 @@
+name: Publish Workflow Monitor
+on:
+  push:
+    branches:
+      - master
+
+defaults:
+  run:
+    shell: powershell
+
+jobs:
+  publish:
+    runs-on: automate03-windows
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Install dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.404'
+          source-url: ${{ vars.NUGET_URL }}
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.NUGET_AUTH_TOKEN_GITEA }}
+
+      - name: Display dotnet version
+        run: dotnet --version
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build app
+        run: dotnet build -c Debug --no-restore
+
+      - name: Stop service
+        run: |
+            try {
+                Stop-Service -Name workflowMonitor -Force -ErrorAction SilentlyContinue
+                Write-Host "Service stopped successfully"
+            } catch {
+                Write-Host "Service failed to stop"
+            }
+            exit 0  # ensure it always exits successfully
+
+      - name: Publish app
+        run: dotnet publish -c Debug --no-build -p:PublishDir=${{ vars.PUBLISH_DIR }}
+
+      - name: Start service
+        run: Start-Service -Name workflowMonitor

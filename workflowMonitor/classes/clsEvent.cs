@@ -1,4 +1,4 @@
-﻿namespace workflowMonitor
+﻿namespace workflowMonitorService
 {
     public class clsEvent
     {

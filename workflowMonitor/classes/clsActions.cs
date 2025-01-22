@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Utilities_NetCore;
 
-namespace workflowMonitor
+namespace workflowMonitorService
 {
     internal class clsActions
     {
@@ -24,7 +24,7 @@ namespace workflowMonitor
                         break;
                     default:
                         // this shouldn't ever happen, write a log record
-                        modLogging.AddLog(Program.programName, "C#", "clsActions.StartApplication", modLogging.eLogLevel.ERROR, $"Invalid applicationType in event #{myEvent.eventID}: <{myEvent.applicationType}>", modLogging.eLogMethod.DATABASE);
+                        modLogging.AddLog(WorkflowMonitor.programName, "C#", "clsActions.StartApplication", modLogging.eLogLevel.ERROR, $"Invalid applicationType in event #{myEvent.eventID}: <{myEvent.applicationType}>", modLogging.eLogMethod.DATABASE);
                         UpdateEventStatus(myEvent.eventID, "Error", $"Invalid applicationType: <{myEvent.applicationType}>");
                         break;
                 }
@@ -70,8 +70,8 @@ namespace workflowMonitor
                 tcs.SetResult(process.ExitCode);
             };
 
-            process.Start();
             UpdateEventStatus(myEvent.eventID, "Processing");
+            process.Start();
 
             // read the output if needed
             string output = await process.StandardOutput.ReadToEndAsync();
@@ -96,7 +96,7 @@ namespace workflowMonitor
         private static async Task StartProcedure(clsEvent myEvent)
         {
             var command = new SqlCommand();
-            command.Connection = Program.connection;
+            command.Connection = WorkflowMonitor.connection;
             command.CommandType = CommandType.StoredProcedure;
             command.CommandText = myEvent.applicationFilename;
 
@@ -126,9 +126,9 @@ namespace workflowMonitor
             };
             command.Parameters.Add(returnParameter);
 
-            await command.ExecuteNonQueryAsync();
-
             UpdateEventStatus(myEvent.eventID, "Processing");
+
+            await command.ExecuteNonQueryAsync();
 
             int returnValue = (int)returnParameter.Value;
             if (returnValue == 0)
@@ -143,12 +143,9 @@ namespace workflowMonitor
 
         private static void UpdateEventStatus(int eventID, string eventStatus, string? eventNote = null)
         {
-#if DEBUG
-            Debug.Print($"{eventID}^{eventStatus}^{eventNote}");
-#else
             var command = new SqlCommand();
-            command.Connection = Program.connection;
-            command.CommandType = System.Data.CommandType.StoredProcedure;
+            command.Connection = WorkflowMonitor.connection;
+            command.CommandType = CommandType.StoredProcedure;
             command.CommandText = "Workflow.dbo.updateEventStatus";
             command.Parameters.AddWithValue("@eventID", eventID);
             command.Parameters.AddWithValue("@eventStatus", eventStatus);
@@ -157,7 +154,6 @@ namespace workflowMonitor
                 command.Parameters.AddWithValue("@eventNote", eventNote);
             }
             command.ExecuteNonQuery();
-#endif
         }
     }
 }
