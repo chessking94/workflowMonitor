@@ -30,7 +30,7 @@ jobs:
         run: dotnet restore
 
       - name: Build app
-        run: dotnet build -c Debug --no-restore
+        run: dotnet build -c Release --no-restore
 
       - name: Stop service
         run: |
@@ -43,7 +43,7 @@ jobs:
             exit 0  # ensure it always exits successfully
 
       - name: Publish app
-        run: dotnet publish -c Debug --no-build -p:PublishDir=${{ vars.PUBLISH_DIR }}
+        run: dotnet publish -c Release --no-build -p:PublishDir=${{ vars.PUBLISH_DIR }}
 
       - name: Start service
         run: Start-Service -Name workflowMonitor
