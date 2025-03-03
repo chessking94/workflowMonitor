@@ -50,6 +50,8 @@ namespace workflowMonitorService
 
                 connection.ConnectionString = connectionString;
 
+                var tasks = new List<Task>();
+
                 // only want this to run between 2:30am and 10:30pm, the remaining 4 hours are a nightly maintenance period
                 TimeSpan startTime = new(2, 30, 0);
                 TimeSpan endTime = new(22, 30, 0);
@@ -102,7 +104,7 @@ namespace workflowMonitorService
                             var result = await command.ExecuteScalarAsync(cancellationToken);
                             if (result != DBNull.Value && Convert.ToInt16(result) == 1)
                             {
-                                await clsActions.StartApplication(evt);
+                                tasks.Add(clsActions.StartApplication(evt));
                             }
                         }
                     }
@@ -111,6 +113,7 @@ namespace workflowMonitorService
                     int sleepSeconds = 10;
                     await Task.Delay(1000 * sleepSeconds, cancellationToken);
                 }
+                await Task.WhenAll(tasks);
             }
             catch (Exception ex)
             {
