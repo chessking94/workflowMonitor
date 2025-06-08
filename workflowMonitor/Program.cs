@@ -50,6 +50,30 @@ namespace workflowMonitorService
 
                 connection.ConnectionString = connectionString;
 
+                bool valid_conn = false;
+                int attempts = 0;
+                while (!valid_conn && attempts < 3)
+                {
+                    try
+                    {
+                        connection.Open();
+                        valid_conn = true;
+                    }
+                    catch (Exception)
+                    {
+                        attempts++;
+                        if (attempts < 3)
+                        {
+                            Thread.Sleep(90000);  // wait for 90 seconds and then try again
+                        }
+                        else
+                        {
+                            modNotifications.SendTelegramMessage("WorkflowMonitor: Unable to connect to database after three attempts, service terminated!");
+                            return;  // no need to throw an exception, which would then try and connect to the database again
+                        }
+                    }
+                }
+
                 var tasks = new List<Task>();
 
                 // only want this to run between 2:30am and 10:30pm, the remaining 4 hours are a nightly maintenance period
