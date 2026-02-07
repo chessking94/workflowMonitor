@@ -131,11 +131,36 @@ namespace workflowMonitorService
                                 tasks.Add(clsActions.StartApplication(evt));
                             }
                         }
-                    }
 
-                    // sleep for the defined period or until cancellation is requested
-                    int sleepSeconds = 10;
-                    await Task.Delay(1000 * sleepSeconds, cancellationToken);
+                        // sleep for the defined period or until cancellation is requested
+                        int sleepSeconds = 10;
+                        try
+                        {
+                            await Task.Delay(1000 * sleepSeconds, cancellationToken);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // this is expected when the service stops, do not need to log this
+                        }
+                    }
+                    else
+                    {
+                        // close the connection to save on resources
+                        if (connection.State == System.Data.ConnectionState.Open)
+                        {
+                            connection.Close();
+                        }
+
+                        int sleepSeconds = 60 * 15;  // while in maintenance period, only check every 15 minutes
+                        try
+                        {
+                            await Task.Delay(1000 * sleepSeconds, cancellationToken);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // this is expected when the service stops, do not need to log this
+                        }
+                    }
                 }
                 await Task.WhenAll(tasks);
             }
