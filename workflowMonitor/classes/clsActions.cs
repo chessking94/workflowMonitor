@@ -148,6 +148,7 @@ namespace workflowMonitorService
             command.CommandType = CommandType.StoredProcedure;
             command.CommandText = "Workflow.dbo.updateEventStatus";
             command.Parameters.AddWithValue("@eventID", eventID);
+            command.Parameters.AddWithValue("@executedOn", Environment.MachineName);
             command.Parameters.AddWithValue("@eventStatus", eventStatus);
             if (eventNote != null)
             {
